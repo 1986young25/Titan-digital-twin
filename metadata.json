@@ -1,0 +1,6 @@
+{
+  "name": "Titan Games Security Master System",
+  "description": "Real-time structural health monitoring, telemetry, and encrypted asset management for Titan Games Security.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
