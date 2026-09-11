@@ -96,8 +96,8 @@ async function startServer() {
   });
   app.use(vite.middlewares);
 
-  const port = process.env.PORT || 3000;
-  app.listen(Number(port), '0.0.0.0', () => {
+  const port = 3000;
+  app.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on port ${port}`);
   });
 }
