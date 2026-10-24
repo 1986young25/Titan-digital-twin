@@ -10,9 +10,16 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('titan_theme');
+    if (saved === 'dark' || saved === 'light') {
+      return saved;
+    }
+    return 'dark';
+  });
 
   useEffect(() => {
+    localStorage.setItem('titan_theme', theme);
     const root = window.document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');

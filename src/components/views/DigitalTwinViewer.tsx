@@ -1,9 +1,12 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stats } from '@react-three/drei';
 import * as THREE from 'three';
-import { Box as BoxIcon } from 'lucide-react';
+import { Box as BoxIcon, Camera, Download, Sparkles } from 'lucide-react';
 import { useEntityContext } from '../../context/EntityContext';
+import { useNotification } from '../../context/NotificationContext';
+import { CanvasSnapshotHelper, CanvasSnapshotRef, CaptureResult } from '../common/CanvasSnapshotHelper';
+import { ViewerSnapshotModal } from '../common/ViewerSnapshotModal';
 
 function ServerRacks() {
   const rackCount = 20;
@@ -78,24 +81,122 @@ function DataParticles() {
 
 export function DigitalTwinViewer() {
   const { activeEntity } = useEntityContext();
-  
-  // A quick way to hook into theme for three.js canvas color, though React Context would be better.
+  const { addToast } = useNotification();
+  const snapshotRef = useRef<CanvasSnapshotRef | null>(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalSnapshot, setModalSnapshot] = useState<CaptureResult | null>(null);
+
+  // Quick 1-click snapshot at high-res 2x
+  const handleQuickSnapshot = useCallback(() => {
+    if (!snapshotRef.current) {
+      addToast('Viewer canvas initializing, please try again.', 'warning');
+      return;
+    }
+    const result = snapshotRef.current.capture({
+      scale: 2,
+      includeHud: true,
+      viewerTitle: 'TITAN 4D SPATIAL DIGITAL TWIN',
+      entityName: activeEntity.name,
+    });
+
+    if (result) {
+      const link = document.createElement('a');
+      link.href = result.dataUrl;
+      link.download = result.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addToast(`High-resolution snapshot saved: ${result.filename} (${result.width}x${result.height})`, 'success');
+    } else {
+      addToast('Failed to capture viewer canvas.', 'error');
+    }
+  }, [activeEntity.name, addToast]);
+
+  // Open modal with preview & customization
+  const handleOpenSnapshotModal = useCallback(() => {
+    if (!snapshotRef.current) {
+      addToast('Viewer canvas initializing, please try again.', 'warning');
+      return;
+    }
+    const result = snapshotRef.current.capture({
+      scale: 2,
+      includeHud: true,
+      viewerTitle: 'TITAN 4D SPATIAL DIGITAL TWIN',
+      entityName: activeEntity.name,
+    });
+
+    if (result) {
+      setModalSnapshot(result);
+      setIsModalOpen(true);
+    } else {
+      addToast('Failed to capture viewer canvas.', 'error');
+    }
+  }, [activeEntity.name, addToast]);
+
+  // Modal recapture callback
+  const handleRecapture = useCallback((scale: number, includeHud: boolean) => {
+    if (!snapshotRef.current) return null;
+    return snapshotRef.current.capture({
+      scale,
+      includeHud,
+      viewerTitle: 'TITAN 4D SPATIAL DIGITAL TWIN',
+      entityName: activeEntity.name,
+    });
+  }, [activeEntity.name]);
+
+  // A quick way to hook into theme for three.js canvas color
   const isLightMode = document.documentElement.classList.contains('dark') === false;
-  
+
   return (
     <div className="p-6 h-[calc(100vh-4rem)] flex flex-col relative">
       <div className="flex items-center justify-between mb-4 z-10">
         <div className="flex items-center gap-2">
           <BoxIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
-          <h2 className="font-mono text-sm font-bold text-gray-800 dark:text-gray-200 tracking-widest">4D SPATIAL DIGITAL TWIN</h2>
+          <h2 className="font-mono text-sm font-bold text-gray-800 dark:text-gray-200 tracking-widest">
+            4D SPATIAL DIGITAL TWIN
+          </h2>
         </div>
-        <div className="text-[10px] text-gray-600 dark:text-gray-500 font-mono bg-white dark:bg-[#050505] border border-gray-200 dark:border-gray-800/50 px-3 py-1.5 rounded shadow-sm dark:shadow-none transition-colors duration-200">
-          FACILITY ASSIGNED TO: <span className="text-emerald-600 dark:text-emerald-400">{activeEntity.name}</span>
+
+        {/* Snapshot & Telemetry Actions */}
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleQuickSnapshot}
+            title="Instant High-Resolution PNG Capture (2x HD)"
+            aria-label="Quick capture high-resolution snapshot"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800/60 text-gray-700 dark:text-gray-300 rounded hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-400 dark:hover:border-emerald-800/50 transition-colors shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-500" />
+            <span>QUICK SNAPSHOT</span>
+          </button>
+
+          <button
+            onClick={handleOpenSnapshotModal}
+            title="Open High-Resolution Snapshot Studio with 4K / HUD options"
+            aria-label="Open high-resolution snapshot studio"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-[10px] font-mono bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800/60 rounded font-bold hover:bg-emerald-200 dark:hover:bg-emerald-800/50 transition-colors shadow-sm"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>HIGH-RES SNAPSHOT</span>
+          </button>
+
+          <div className="text-[10px] text-gray-600 dark:text-gray-500 font-mono bg-white dark:bg-[#050505] border border-gray-200 dark:border-gray-800/50 px-3 py-1.5 rounded shadow-sm dark:shadow-none transition-colors duration-200">
+            FACILITY ASSIGNED TO: <span className="text-emerald-600 dark:text-emerald-400">{activeEntity.name}</span>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 bg-white dark:bg-[#050505] border border-gray-200 dark:border-gray-800/50 rounded-xl overflow-hidden relative shadow-sm dark:shadow-none transition-colors duration-200">
-        <Canvas camera={{ position: [15, 10, 15], fov: 45 }} shadows>
+        <Canvas 
+          camera={{ position: [15, 10, 15], fov: 45 }} 
+          shadows
+          gl={{ preserveDrawingBuffer: true, antialias: true, powerPreference: 'high-performance' }}
+        >
+          <CanvasSnapshotHelper 
+            snapshotRef={snapshotRef} 
+            defaultTitle="TITAN 4D SPATIAL DIGITAL TWIN" 
+            entityName={activeEntity.name} 
+          />
           <color attach="background" args={[isLightMode ? '#f9fafb' : '#050505']} />
           <fog attach="fog" args={[isLightMode ? '#f9fafb' : '#050505', 10, 50]} />
           
@@ -135,6 +236,15 @@ export function DigitalTwinViewer() {
           </div>
         </div>
       </div>
+
+      {/* High-Resolution Snapshot Studio Modal */}
+      <ViewerSnapshotModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialResult={modalSnapshot}
+        onRecapture={handleRecapture}
+        viewerName="4D Spatial Digital Twin"
+      />
     </div>
   );
 }

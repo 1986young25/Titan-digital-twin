@@ -1,5 +1,14 @@
 import { X } from 'lucide-react';
-import { format } from 'date-fns';
+
+function formatTimestamp(timestamp: string): string {
+  try {
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return timestamp;
+    return d.toTimeString().split(' ')[0] + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  } catch {
+    return timestamp;
+  }
+}
 
 interface ModalProps {
   isOpen: boolean;
@@ -131,7 +140,7 @@ export function NodeDetailsView({ nodeId, currentNode, history }: NodeDetailsPro
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-xs font-bold text-gray-300 font-mono uppercase">{event.type.replace('_', ' ')}</span>
                     <span className="text-xs text-gray-500 font-mono">
-                      {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
+                      {formatTimestamp(event.timestamp)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-400 font-mono">{event.details}</p>

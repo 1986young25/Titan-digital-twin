@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Building, LayoutDashboard, Wallet, Activity, Box, Network, ChevronRight } from 'lucide-react';
+import { Search, Building, LayoutDashboard, Wallet, Activity, Box, Network, ChevronRight, Gauge, Layers, Radio, Zap } from 'lucide-react';
 import { useEntityContext } from '../../context/EntityContext';
 import { ENTITIES } from '../../data/mockTitanData';
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,8 +10,12 @@ interface CommandPaletteProps {
 
 const VIEWS = [
   { id: 'HUD', label: 'Conglomerate HUD', icon: LayoutDashboard },
+  { id: 'CRYPTID_BRAIN', label: 'Cryptid Brain (Octa-Lobe 4D Core)', icon: Zap },
+  { id: 'COMMERCIAL', label: 'Commercial Tiers & SOW', icon: Layers },
+  { id: 'CAN_BUS', label: 'Kinetic & CAN Telemetry', icon: Gauge },
   { id: 'TREASURY', label: 'Internal Treasury', icon: Wallet },
   { id: 'ACOUSTIC', label: 'Acoustic Simulator', icon: Activity },
+  { id: 'SONAR', label: 'Spatial Sonar', icon: Radio },
   { id: 'TWIN', label: 'Digital Twin', icon: Box },
   { id: 'NOC', label: 'Swarm & NOC', icon: Network },
 ];

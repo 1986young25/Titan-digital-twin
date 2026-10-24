@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated defense operator profile and clearances",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "clearanceLevel": { "type": "string" },
+        "role": { "type": "string" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "TelemetryEvent": {
+      "title": "TelemetryEvent",
+      "description": "CAN bus or kinetic telemetry event data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "vibrationDelta": { "type": "number" },
+        "persistenceCount": { "type": "integer" },
+        "alpha": { "type": "number" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" },
+        "operatorEmail": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "vibrationDelta", "persistenceCount"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Defense digital twin asset or node",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "location": { "type": "string" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "type", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "Registered defense operator profiles"
+    },
+    "/telemetry_events/{eventId}": {
+      "schema": { "$ref": "TelemetryEvent" },
+      "description": "Telemetry event records"
+    },
+    "/assets/{assetId}": {
+      "schema": { "$ref": "Asset" },
+      "description": "Defense digital twin assets"
+    }
+  }
+}

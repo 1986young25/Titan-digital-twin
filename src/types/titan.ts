@@ -5,6 +5,13 @@ export interface CorporateEntity {
   jurisdiction: string;
   tokenAllotment: number;
   ledgerReserves: number;
+  cageStatus?: string;
+  samGov?: string;
+  duns?: string;
+  laraId?: string;
+  darpaAri?: string;
+  procurement?: string;
+  role?: string;
 }
 
 export interface LedgerTransaction {

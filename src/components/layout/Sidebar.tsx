@@ -1,4 +1,4 @@
-import { LayoutDashboard, Wallet, Activity, Box, Network, Settings } from 'lucide-react';
+import { LayoutDashboard, Wallet, Activity, Box, Network, Settings, Radio, Gauge, Layers, Zap } from 'lucide-react';
 
 interface SidebarProps {
   currentView: string;
@@ -8,8 +8,12 @@ interface SidebarProps {
 export function Sidebar({ currentView, onViewChange }: SidebarProps) {
   const menuItems = [
     { id: 'HUD', label: 'Conglomerate HUD', icon: LayoutDashboard },
+    { id: 'CRYPTID_BRAIN', label: 'Cryptid Brain (4D Core)', icon: Zap },
+    { id: 'COMMERCIAL', label: 'Commercial Tiers & SOW', icon: Layers },
+    { id: 'CAN_BUS', label: 'Kinetic & CAN Bus', icon: Gauge },
     { id: 'TREASURY', label: 'Internal Treasury', icon: Wallet },
     { id: 'ACOUSTIC', label: 'Acoustic Simulator', icon: Activity },
+    { id: 'SONAR', label: 'Spatial Sonar', icon: Radio },
     { id: 'TWIN', label: 'Digital Twin', icon: Box },
     { id: 'NOC', label: 'Swarm & NOC', icon: Network },
   ];
@@ -26,7 +30,7 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
         </div>
       </div>
       
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2" aria-label="Main Navigation">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
@@ -34,13 +38,16 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
             <button
               key={item.id}
               onClick={() => onViewChange(item.id)}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
+              role="menuitem"
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-mono text-sm transition-all duration-200 ${
                 isActive 
                   ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/30 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4" aria-hidden="true" />
               {item.label}
             </button>
           );

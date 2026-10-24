@@ -4,6 +4,35 @@ import { Network, Terminal, Cpu, Activity, Database, Shield } from 'lucide-react
 import { motion } from 'motion/react';
 import { useEntityContext } from '../../context/EntityContext';
 import { useNotification } from '../../context/NotificationContext';
+import { NetworkTrafficChart } from '../charts/NetworkTrafficChart';
+
+function Sparkline({ data, isHighLatency }: { data: number[], isHighLatency: boolean }) {
+  const width = 60;
+  const height = 16;
+  const min = Math.min(...data);
+  const max = Math.max(100, Math.max(...data)); // Ensure a baseline scale, but allow spikes to stretch it
+  const range = max - min || 1;
+  
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((val - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} className="overflow-visible ml-2">
+      <polyline 
+        points={points} 
+        fill="none" 
+        stroke={isHighLatency ? '#ef4444' : '#10b981'} 
+        strokeWidth="1.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className="transition-colors duration-300"
+      />
+    </svg>
+  );
+}
 
 export function NocDashboard() {
   const { activeEntity } = useEntityContext();
@@ -13,6 +42,43 @@ export function NocDashboard() {
   const prevEngineState = useRef(engineState);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const [nodes, setNodes] = useState(() => INITIAL_NODES.map(node => ({
+    ...node,
+    latencyHistory: Array(20).fill(node.latency)
+  })));
+
+  // Simulated Ping Service
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNodes(prev => prev.map(node => {
+        // Random walk for latency
+        let newLatency = node.latency + (Math.random() * 8 - 4);
+        
+        // Occasional network spikes
+        if (Math.random() < 0.03) {
+           newLatency += 80 + Math.random() * 50;
+        }
+
+        newLatency = Math.max(5, Math.min(newLatency, 400)); // Clamp between 5ms and 400ms
+
+        return {
+          ...node,
+          latency: Math.round(newLatency),
+          latencyHistory: [...node.latencyHistory.slice(1), Math.round(newLatency)]
+        };
+      }));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // High-latency anomaly simulator check
+  useEffect(() => {
+    const highLatencyNode = nodes.find(n => n.latency > 145);
+    if (highLatencyNode && Math.random() < 0.3) { // 30% chance to report if high to avoid spamming
+      addToast(`NETWORK ANOMALY: ${highLatencyNode.id} experiencing high latency (${highLatencyNode.latency}ms RTT)`, 'warning');
+    }
+  }, [nodes, addToast]);
+
   // Engine state change notifications
   useEffect(() => {
     if (prevEngineState.current !== engineState) {
@@ -21,15 +87,7 @@ export function NocDashboard() {
     }
   }, [engineState, addToast]);
 
-  // High-latency anomaly simulator
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (Math.random() < 0.05) { // 5% chance every 4 seconds
-        addToast(`NETWORK ANOMALY: Node-01 experiencing high latency (> 145ms RTT)`, 'warning');
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [addToast]);
+
 
   // Simulated high-frequency logs
   useEffect(() => {
@@ -175,20 +233,25 @@ export function NocDashboard() {
             <h2 className="font-mono text-sm font-bold text-gray-800 dark:text-gray-200 tracking-widest">SWARM MESH CONTROLLER</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {INITIAL_NODES.map(node => (
+            {nodes.map(node => (
               <div key={node.id} className="bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800/50 p-3 rounded flex justify-between items-center transition-colors duration-200">
                 <div>
                   <div className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">{node.id}</div>
                   <div className="text-[10px] text-gray-500 font-mono">{node.name}</div>
                 </div>
-                <div className="text-right">
-                  <div className={`text-[10px] font-mono px-2 py-0.5 rounded border transition-colors ${
-                    node.status === 'ACTIVE_SEALING' ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50' : 
-                    'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50'
-                  }`}>
-                    {node.status}
+                <div className="text-right flex items-center justify-end gap-2">
+                  <div>
+                    <div className={`text-[10px] font-mono px-2 py-0.5 rounded border transition-colors ${
+                      node.status === 'ACTIVE_SEALING' ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50' : 
+                      'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50'
+                    }`}>
+                      {node.status}
+                    </div>
+                    <div className={`text-[10px] font-mono mt-1 ${node.latency > 145 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-600'}`}>
+                      {node.latency}ms RTT
+                    </div>
                   </div>
-                  <div className="text-[10px] text-gray-500 dark:text-gray-600 font-mono mt-1">{node.latency}ms RTT</div>
+                  <Sparkline data={node.latencyHistory} isHighLatency={node.latency > 145} />
                 </div>
               </div>
             ))}
@@ -248,25 +311,41 @@ export function NocDashboard() {
 
       </div>
 
-      {/* Bottom: Ingress Log */}
-      <div className="bg-white dark:bg-black/40 border border-gray-200 dark:border-gray-800/50 rounded-xl h-48 flex flex-col overflow-hidden transition-colors duration-200 shadow-sm dark:shadow-none">
-         <div className="p-3 border-b border-gray-200 dark:border-gray-800/50 bg-gray-50 dark:bg-[#0a0a0a] flex justify-between items-center shrink-0 transition-colors duration-200">
-            <h2 className="font-mono text-xs font-bold text-gray-600 dark:text-gray-400 tracking-widest flex items-center gap-2"><Terminal className="w-4 h-4"/> TRAFFIC & QUERY STREAM</h2>
-            <div className="flex gap-2">
-              <span className="text-[10px] bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 rounded font-mono cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors">ALL</span>
-              <span className="text-[10px] bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 rounded font-mono cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors">TELEMETRY</span>
-              <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-2 rounded font-mono cursor-pointer transition-colors">LEDGER SEAL</span>
-            </div>
-         </div>
-         <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-[#050505] font-mono text-xs space-y-1 transition-colors duration-200">
-           {logs.map(log => (
-             <div key={log.id} className="text-gray-600 dark:text-gray-400 flex gap-4 hover:bg-gray-100 dark:hover:bg-gray-900/50 px-2 py-0.5 rounded transition-colors">
-               <span className="text-gray-500 dark:text-gray-600 shrink-0">[{log.time}]</span>
-               <span className="text-emerald-600 dark:text-emerald-400/80">{log.msg}</span>
-             </div>
-           ))}
-           {logs.length === 0 && <div className="text-gray-500 dark:text-gray-600">STREAM PAUSED. AWAITING ENGINE STATE CHANGE...</div>}
-         </div>
+      {/* Bottom: Ingress Log and Chart */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 h-64">
+        
+        {/* Ingress Log */}
+        <div className="bg-white dark:bg-black/40 border border-gray-200 dark:border-gray-800/50 rounded-xl flex flex-col overflow-hidden transition-colors duration-200 shadow-sm dark:shadow-none">
+           <div className="p-3 border-b border-gray-200 dark:border-gray-800/50 bg-gray-50 dark:bg-[#0a0a0a] flex justify-between items-center shrink-0 transition-colors duration-200">
+              <h2 className="font-mono text-xs font-bold text-gray-600 dark:text-gray-400 tracking-widest flex items-center gap-2"><Terminal className="w-4 h-4"/> TRAFFIC & QUERY STREAM</h2>
+              <div className="flex gap-2">
+                <span className="text-[10px] bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 rounded font-mono cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors">ALL</span>
+                <span className="text-[10px] bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 rounded font-mono cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors">TELEMETRY</span>
+                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-2 rounded font-mono cursor-pointer transition-colors">LEDGER SEAL</span>
+              </div>
+           </div>
+           <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-[#050505] font-mono text-xs space-y-1 transition-colors duration-200">
+             {logs.map(log => (
+               <div key={log.id} className="text-gray-600 dark:text-gray-400 flex gap-4 hover:bg-gray-100 dark:hover:bg-gray-900/50 px-2 py-0.5 rounded transition-colors">
+                 <span className="text-gray-500 dark:text-gray-600 shrink-0">[{log.time}]</span>
+                 <span className="text-emerald-600 dark:text-emerald-400/80">{log.msg}</span>
+               </div>
+             ))}
+             {logs.length === 0 && <div className="text-gray-500 dark:text-gray-600">STREAM PAUSED. AWAITING ENGINE STATE CHANGE...</div>}
+           </div>
+        </div>
+
+        {/* Historical Network Traffic Chart (D3) */}
+        <div className="bg-white dark:bg-black/40 border border-gray-200 dark:border-gray-800/50 rounded-xl flex flex-col overflow-hidden transition-colors duration-200 shadow-sm dark:shadow-none">
+          <div className="p-3 border-b border-gray-200 dark:border-gray-800/50 bg-gray-50 dark:bg-[#0a0a0a] flex justify-between items-center transition-colors duration-200">
+             <h2 className="font-mono text-xs font-bold text-gray-600 dark:text-gray-400 tracking-widest flex items-center gap-2"><Activity className="w-4 h-4"/> HISTORICAL NETWORK TRAFFIC</h2>
+             <div className="text-[10px] bg-gray-100 dark:bg-black px-2 py-0.5 rounded font-mono text-gray-500 border border-gray-200 dark:border-gray-800/50">D3.JS COMPONENT</div>
+          </div>
+          <div className="flex-1 p-2">
+             <NetworkTrafficChart />
+          </div>
+        </div>
+
       </div>
 
     </div>

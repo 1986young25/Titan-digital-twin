@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ENTITIES } from '../data/mockTitanData';
 import { CorporateEntity } from '../types/titan';
 
@@ -11,7 +11,18 @@ interface EntityContextType {
 const EntityContext = createContext<EntityContextType | undefined>(undefined);
 
 export function EntityProvider({ children }: { children: ReactNode }) {
-  const [activeEntityId, setActiveEntityId] = useState<string>(ENTITIES[0].id);
+  const [activeEntityId, setActiveEntityId] = useState<string>(() => {
+    const saved = localStorage.getItem('titan_active_entity');
+    if (saved && ENTITIES.some(e => e.id === saved)) {
+      return saved;
+    }
+    return ENTITIES[0].id;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('titan_active_entity', activeEntityId);
+  }, [activeEntityId]);
+
   const activeEntity = ENTITIES.find(e => e.id === activeEntityId) || ENTITIES[0];
 
   return (

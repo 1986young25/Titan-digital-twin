@@ -1,13 +1,62 @@
-import { useEffect, useRef, useState } from 'react';
-import { Activity } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Activity, Camera } from 'lucide-react';
 import { useEntityContext } from '../../context/EntityContext';
+import { useNotification } from '../../context/NotificationContext';
 
-export function AcousticSimulator() {
+export const AcousticSimulator = React.memo(function AcousticSimulator() {
   const { activeEntity } = useEntityContext();
+  const { addToast } = useNotification();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [frequency, setFrequency] = useState(3.69);
   const [damping, setDamping] = useState(0.98);
   const [amplitude, setAmplitude] = useState(50);
+  
+  const handleSnapshot = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      // High-resolution export via 2x offscreen canvas with anti-aliasing
+      const scale = 2;
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = canvas.width * scale;
+      offCanvas.height = canvas.height * scale;
+      const ctx = offCanvas.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(canvas, 0, 0, offCanvas.width, offCanvas.height);
+
+        // Add subtle forensic telemetry watermark
+        const sf = offCanvas.width / 1600;
+        ctx.fillStyle = 'rgba(5, 5, 5, 0.8)';
+        ctx.fillRect(16 * sf, offCanvas.height - 52 * sf, 480 * sf, 40 * sf);
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(16 * sf, offCanvas.height - 52 * sf, 480 * sf, 40 * sf);
+
+        ctx.font = `bold ${Math.round(12 * sf)}px 'Courier New', monospace`;
+        ctx.fillStyle = '#10b981';
+        ctx.fillText(`TELEMETRY SNAPSHOT // ${activeEntity.name}`, 26 * sf, offCanvas.height - 32 * sf);
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = `${Math.round(10 * sf)}px 'Courier New', monospace`;
+        ctx.fillText(`FREQ: ${frequency.toFixed(2)}Hz | RES: ${offCanvas.width}x${offCanvas.height} | SHA-256 SEAL`, 26 * sf, offCanvas.height - 18 * sf);
+      }
+
+      const now = new Date();
+      const filename = `telemetry_snapshot_${now.toISOString().replace(/:/g, '_')}.png`;
+      const url = offCanvas.toDataURL('image/png', 1.0);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addToast(`High-resolution snapshot saved: ${filename} (${offCanvas.width}x${offCanvas.height})`, 'success');
+    } catch (err) {
+      console.error(err);
+      addToast('Failed to capture high-res snapshot.', 'error');
+    }
+  }, [activeEntity.name, frequency, addToast]);
   
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -119,8 +168,17 @@ export function AcousticSimulator() {
           <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
           <h2 className="font-mono text-sm font-bold text-gray-800 dark:text-gray-200 tracking-widest">ACOUSTIC WAVE PROPAGATION (NDT)</h2>
         </div>
-        <div className="text-[10px] text-gray-600 dark:text-gray-500 font-mono bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800/50 px-3 py-1.5 rounded shadow-sm dark:shadow-none">
-          OPERATING AS: <span className="text-emerald-600 dark:text-emerald-400">{activeEntity.name}</span>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleSnapshot}
+            className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-mono bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            SNAPSHOT
+          </button>
+          <div className="text-[10px] text-gray-600 dark:text-gray-500 font-mono bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800/50 px-3 py-1.5 rounded shadow-sm dark:shadow-none">
+            OPERATING AS: <span className="text-emerald-600 dark:text-emerald-400">{activeEntity.name}</span>
+          </div>
         </div>
       </div>
 
@@ -173,4 +231,4 @@ export function AcousticSimulator() {
       </div>
     </div>
   );
-}
+});

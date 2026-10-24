@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>THE CRYPTID BRAIN // OCTA-LOBE COMMAND</title>
+    <style>
+        :root {
+            --bg-dark: #050811;
+            --border-cyan: #00e5ff;
+            --gold: #ffd700;
+            --panel-bg: rgba(5, 8, 17, 0.88);
+            --text-dim: #78909c;
+            --accent-green: #00ff7f;
+            --accent-red: #ff1744;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: var(--bg-dark); font-family: 'Courier New', Courier, monospace; color: #fff; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: grid; grid-template-columns: 320px 1fr 340px; grid-template-rows: 60px 1fr 140px; gap: 10px; padding: 12px; }
+        .hud-panel { background: var(--panel-bg); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; padding: 10px; pointer-events: auto; backdrop-filter: blur(4px); box-shadow: 0 0 15px rgba(0, 229, 255, 0.1); }
+        .hud-header { grid-column: 1 / 4; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-cyan); }
+        .hud-header h1 { font-size: 1.1rem; color: #fff; letter-spacing: 2px; }
+        .hud-header .sub-header { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+        .stat-card { background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); padding: 5px; border-radius: 3px; }
+        .stat-label { font-size: 0.55rem; color: var(--text-dim); }
+        .stat-val { font-size: 0.8rem; font-weight: bold; color: var(--border-cyan); margin-top: 2px; }
+        .lobe-list { margin-top: 8px; max-height: calc(100% - 150px); overflow-y: auto; }
+        .lobe-item { padding: 6px; border: 1px solid rgba(0, 229, 255, 0.15); margin-bottom: 4px; border-radius: 3px; font-size: 0.65rem; cursor: pointer; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .lobe-item:hover, .lobe-item.active { background: rgba(0, 229, 255, 0.2); border-color: var(--border-cyan); }
+        .control-group { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+        .btn-action { background: rgba(0, 229, 255, 0.1); border: 1px solid var(--border-cyan); color: #fff; font-family: monospace; font-size: 0.7rem; padding: 6px; border-radius: 3px; cursor: pointer; text-align: left; }
+        .btn-action:hover { background: rgba(0, 229, 255, 0.3); color: var(--gold); }
+        .btn-danger { border-color: var(--accent-red); color: var(--accent-red); }
+        .btn-danger:hover { background: rgba(255, 23, 68, 0.3); }
+        .hud-footer { grid-column: 1 / 4; grid-row: 3; }
+        .terminal-log { height: 100%; overflow-y: auto; font-size: 0.65rem; color: #a4d8ec; white-space: pre-wrap; line-height: 1.3; }
+        
+        /* EXPANSION MODAL */
+        #inspector-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 580px;
+            max-width: 90vw;
+            background: rgba(5, 8, 17, 0.95);
+            border: 2px solid var(--gold);
+            border-radius: 6px;
+            padding: 16px;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+            pointer-events: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--gold); padding-bottom: 8px; }
+        .modal-title { font-size: 1rem; color: var(--gold); font-weight: bold; }
+        .modal-close { cursor: pointer; color: #fff; font-size: 1rem; padding: 2px 8px; border: 1px solid #fff; border-radius: 3px; }
+        .modal-section { margin-top: 10px; }
+        .section-tag { font-size: 0.65rem; color: var(--border-cyan); font-weight: bold; }
+        .section-body { font-size: 0.72rem; color: #cfd8dc; margin-top: 3px; line-height: 1.4; background: rgba(0,0,0,0.4); padding: 6px; border-radius: 3px; border-left: 2px solid var(--border-cyan); }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="hud-overlay">
+        <header class="hud-header hud-panel">
+            <div>
+                <h1>THE CRYPTID BRAIN // SOVEREIGN OCTA-LOBE COMMAND</h1>
+                <div class="sub-header">FIDUCIARY ROOT: THE NICHOLAS YOUNG MASTER TRUST | CARRIER: TITAN GAMES SECURITY L.L.C.</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 0.8rem; color: var(--border-cyan);">CLOCK: <span style="color: var(--gold);">3.69 Hz TESLA PULSE</span></div>
+                <div style="font-size: 0.65rem; color: var(--text-dim);">PORTS: 8080 (REST) | 8088 (PROXY) | 14550 (UDP)</div>
+            </div>
+        </header>
+
+        <div class="hud-panel" style="grid-column: 1; grid-row: 2;">
+            <div style="font-size: 0.75rem; color: var(--border-cyan); font-weight: bold; border-bottom: 1px solid rgba(0,229,255,0.3); padding-bottom: 4px;">
+                PHYSICAL INVARIANTS & TELEMETRY
+            </div>
+            <div class="stat-grid">
+                <div class="stat-card"><div class="stat-label">FREE SPACE Z₀</div><div class="stat-val" id="stat-z0">376.5 Ω</div></div>
+                <div class="stat-card"><div class="stat-label">METRONOME</div><div class="stat-val" id="stat-cadence">3.69 Hz</div></div>
+                <div class="stat-card"><div class="stat-label">ENTROPY H(X)</div><div class="stat-val" id="stat-h">1.4921</div></div>
+                <div class="stat-card"><div class="stat-label">ATRM ATTENUATION</div><div class="stat-val" id="stat-atrm">-42.60 dB</div></div>
+                <div class="stat-card"><div class="stat-label">4D ROTATION PHASE</div><div class="stat-val" id="stat-phase">Δt = 0.025π</div></div>
+                <div class="stat-card"><div class="stat-label">CER PERFECTION</div><div class="stat-val" id="stat-cer">UCC § 12-105</div></div>
+            </div>
+            <div style="margin-top: 12px; font-size: 0.75rem; color: var(--border-cyan); font-weight: bold; border-bottom: 1px solid rgba(0,229,255,0.3); padding-bottom: 4px;">
+                OCTA-LOBE TOPOLOGY DIRECTORY
+            </div>
+            <div class="lobe-list" id="lobe-list-container"></div>
+        </div>
+
+        <div class="hud-panel" style="grid-column: 3; grid-row: 2;">
+            <div style="font-size: 0.75rem; color: var(--border-cyan); font-weight: bold; border-bottom: 1px solid rgba(0,229,255,0.3); padding-bottom: 4px;">
+                TOPOLOGY CONTROLS & OVERRIDES
+            </div>
+            <div class="control-group">
+                <button class="btn-action" onclick="pulseCore()">Execute Core Shockwave (3.69 Hz)</button>
+                <button class="btn-action" onclick="toggleTemporalOffset()">Toggle 4D Temporal Rim Shift</button>
+                <button class="btn-action" onclick="resetOrbPositions()">Synchronize Synaptic Vectors</button>
+                <button class="btn-action btn-danger" onclick="triggerCircuitBreaker()">Trip Modulo-9 Circuit Breaker</button>
+            </div>
+            <div style="margin-top: 16px; font-size: 0.75rem; color: var(--border-cyan); font-weight: bold; border-bottom: 1px solid rgba(0,229,255,0.3); padding-bottom: 4px;">
+                SELECTED LOBE TELEMETRY
+            </div>
+            <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 3px; margin-top: 6px; font-size: 0.65rem;">
+                <div>NODE: <span id="sel-node-id" style="color:var(--gold);">MOD-01: INGESTION ROUTER</span></div>
+                <div style="margin-top: 3px;">REAL-TIME THROUGHPUT: <span id="sel-node-tput" style="color:var(--accent-green);">12,410 VEC/SEC</span></div>
+                <div style="margin-top: 3px;">CONVERGENCE SCORE: <span style="color:#00e5ff;">99.98% COHERENT</span></div>
+            </div>
+        </div>
+
+        <footer class="hud-footer hud-panel">
+            <div class="terminal-log" id="terminal-stream">
+[00:00:00 UTC] SOVEREIGN TOPOLOGY ENGINE ONLINE...
+[00:00:00 UTC] DOUBLE-EDGED 4D STAR OF DAVID GENERATED AT CORE (376.5 Ω ANCHOR).
+[00:00:00 UTC] TEMPORAL DRIFT Δt ALIGNED TO 3.69 Hz CADENCE.
+[00:00:00 UTC] CLICK ANY SATELLITE ORB OR CENTRAL CORE TO INSPECT FUNCTIONAL PLANES.
+            </div>
+        </footer>
+    </div>
+
+    <!-- EXPANSION MODAL -->
+    <div id="inspector-modal">
+        <div class="modal-header">
+            <div class="modal-title" id="m-title">LOBE DETAILS</div>
+            <div class="modal-close" onclick="closeModal()">✕</div>
+        </div>
+        <div class="modal-section">
+            <div class="section-tag">[1] REAL-WORLD OPERATIONAL CONTEXT</div>
+            <div class="section-body" id="m-rw"></div>
+        </div>
+        <div class="modal-section">
+            <div class="section-tag">[2] SOFTWARE ARCHITECTURE & EXECUTION STACK</div>
+            <div class="section-body" id="m-soft"></div>
+        </div>
+        <div class="modal-section">
+            <div class="section-tag">[3] DECISION PLANE CONTEXT (HEURISTICS & GATEWAYS)</div>
+            <div class="section-body" id="m-dp"></div>
+        </div>
+        <div class="modal-section">
+            <div class="section-tag">[4] ETYMOLOGY & NAMING CONVENTION RATIONALE</div>
+            <div class="section-body" id="m-name"></div>
+        </div>
+        <div class="modal-section">
+            <div class="section-tag">[5] REAL-TIME ACTIVE STATE</div>
+            <div class="section-body" id="m-state" style="border-left-color: var(--gold); color: var(--gold);"></div>
+        </div>
+    </div>
+
+    <script>
+        const LOBES = [
+            {
+                id: 1,
+                name: "MOD-01: INGESTION ROUTER",
+                tag: "MOD-09-PREFILTER",
+                realWorld: "Ingests raw telemetry and packet bursts from mobile antennas, satellite downlinks, and physical edge hardware.",
+                software: "C / OpenMP native library performing modular reduction (n % 9). Operates in zero-copy userspace to discard malformed payloads at wire speed.",
+                decisionPlane: "Line-rate circuit breaker. Payloads exceeding Shannon entropy ceiling H(X) >= 1.4999 are stripped and quarantined before memory allocation.",
+                namingRationale: "Named 'Ingestion Router' because it sits at the absolute socket ingress layer, routing valid datagrams while preserving determinism.",
+                status: "ONLINE // PROCESSING SENSORY STREAM"
+            },
+            {
+                id: 2,
+                name: "MOD-02: QUANTUM VECTOR CORE",
+                tag: "QASM-3.0-CORE",
+                realWorld: "Simulates deterministic quantum state evolution for secure distributed consensus across decentralized hardware nodes.",
+                software: "Python/NumPy state-vector engine simulating 2-qubit Bell States (|Φ+⟩) and Hadamard phase rotations matching the 376.5 Ω free-space impedance.",
+                decisionPlane: "State coherence gatekeeper. Evaluates vector alignments to establish non-interactive cryptographic proof of computation.",
+                namingRationale: "Named 'Quantum Vector Core' because it structures state transitions as mathematical unitary vectors in a 4D Hilbert manifold.",
+                status: "ENTANGLED // 376.5 Ω HARMONIC MATCH"
+            },
+            {
+                id: 3,
+                name: "MOD-03: ENCLAVE VAULT",
+                tag: "SQLITE3-WAL-LEDGER",
+                realWorld: "Physically persists tamper-evident records to local non-volatile storage under Michigan trust administration law (MCL § 700.7101).",
+                software: "SQLite engine configured with PRAGMA journal_mode=WAL, PRAGMA synchronous=NORMAL, and 64MB cache pages committed to disk.",
+                decisionPlane: "Fiduciary persistence gate. Ensures no state mutation occurs in memory without an immediate atomic disk fsync and hash commitment.",
+                namingRationale: "Named 'Enclave Vault' because it acts as an isolated cryptographic enclave protecting the Master Trust's asset ledgers.",
+                status: "SEALED // WAL PERSISTENCE LOCK"
+            },
+            {
+                id: 4,
+                name: "MOD-04: ATRM PHASE NULLIFIER",
+                tag: "SPEC-DB-003-ATRM",
+                realWorld: "Acoustic Time Reversal Mirror cancelling phase distortions, hardware back-EMF, and electromagnetic packet interference.",
+                software: "Signal processing DSP filter implementing a digital phase inversion by π radians with a measured attenuation floor of -42.60 dB.",
+                decisionPlane: "Active noise suppression. Continuously compares incoming noise harmonics to reverse-phase baselines to nullify transient jitter.",
+                namingRationale: "Named 'ATRM Phase Nullifier' for Acoustic Time Reversal Mirroring that projects time-reversed wave pulses to cancel echoes.",
+                status: "ACTIVE // PHASE ATTENUATION -42.6 dB"
+            },
+            {
+                id: 5,
+                name: "MOD-05: 4D HYPER-MANIFOLD",
+                tag: "TESSERACT-PROJECTION",
+                realWorld: "Visualizes and tracks higher-dimensional system interactions across time, space, computational throughput, and financial reserves.",
+                software: "Geometric projection pipeline rotating 4-polytopes (tesseracts) onto 3D coordinate frames via affine 4x4 matrix transformations.",
+                decisionPlane: "Topological invariant validator. Flags dimensional instability when the Mahalanobis M-score deviates outside unit covariance.",
+                namingRationale: "Named '4D Hyper-Manifold' because it models the system as a continuous four-dimensional geometric state machine.",
+                status: "PROJECTING // M-SCORE: 0.8491"
+            },
+            {
+                id: 6,
+                name: "MOD-06: SWARM FLIGHT MESH",
+                tag: "MAVLINK-UDP-14550",
+                realWorld: "Controls autonomous edge platforms, drones, and sensor rigs coordinating in physical field space via peer-to-peer telemetry.",
+                software: "Asynchronous UDP socket listener binding port 14550, decoding binary MAVLink 2.0 frames into Cartesian state positions.",
+                decisionPlane: "Decentralized consensus router. Validates packet signatures across Alpha, Bravo, and Sigma hardware nodes before relay.",
+                namingRationale: "Named 'Swarm Flight Mesh' because it provides the real-time telemetry grid required for synchronized multi-agent physical movement.",
+                status: "LISTENING // UDP 127.0.0.1:14550"
+            },
+            {
+                id: 7,
+                name: "MOD-07: PID HEALING & MINT",
+                tag: "AUTONOMOUS-CDC-LOOP",
+                realWorld: "Controls asset capitalization rates and dynamically regulates CPU/memory utilization to prevent system throttling and crash states.",
+                software: "Proportional-Integral-Derivative (PID) closed-loop software controller adjusting ingestion throttle and triggering 10:1 CER mint blocks.",
+                decisionPlane: "Autonomous feedback loop. Adjusts packet processing velocity dynamically to prevent Android Low Memory Killer (LMK) terminations.",
+                namingRationale: "Named 'PID Healing & Mint' because it unites classical industrial process control (PID) with programmatic asset balance generation.",
+                status: "BALANCED // COHERENCE 99.98%"
+            },
+            {
+                id: 8,
+                name: "MOD-08: ASC 350-40 WATERFALL",
+                tag: "FIDUCIARY-SWEEP",
+                realWorld: "Conducts automated revenue recognition and straight-line software capitalization under US GAAP standards for financial audits.",
+                software: "Ledger daemon calculating monthly straight-line amortization on the $383,600.00 capitalized base ($10,655.56/mo) and generating ASC 606 splits.",
+                decisionPlane: "Accounting reconciliation engine. Persists immutable SHA-256 state seals to the general journal on every financial draw.",
+                namingRationale: "Named 'ASC 350-40 Waterfall' after the authoritative FASB standard governing Internal-Use Software Capitalization.",
+                status: "VERIFIED // NBV: $362,288.89"
+            }
+        ];
+
+        // Populate Left Panel List
+        const lobeListEl = document.getElementById("lobe-list-container");
+        LOBES.forEach((l, idx) => {
+            const row = document.createElement("div");
+            row.className = `lobe-item ${idx === 0 ? 'active' : ''}`;
+            row.id = `item-${idx}`;
+            row.onclick = () => selectLobe(idx);
+            row.innerHTML = `<div><div style="font-weight:bold;">${l.name}</div><div style="font-size:0.55rem; color:var(--text-dim);">${l.tag}</div></div><div style="color:var(--accent-green); font-size:0.6rem;">OK</div>`;
+            lobeListEl.appendChild(row);
+        });
+
+        function logTerminal(msg) {
+            const term = document.getElementById("terminal-stream");
+            const ts = new Date().toISOString().substring(11, 19);
+            term.innerHTML += `\n[${ts} UTC] ${msg}`;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function selectLobe(idx) {
+            document.querySelectorAll('.lobe-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`item-${idx}`).classList.add('active');
+            const lobe = LOBES[idx];
+            document.getElementById("sel-node-id").innerText = lobe.name;
+            logTerminal(`[ROUTING] Switched focus to ${lobe.tag}`);
+        }
+
+        function openModal(lobe) {
+            document.getElementById("m-title").innerText = `${lobe.name} (${lobe.tag})`;
+            document.getElementById("m-rw").innerText = lobe.realWorld;
+            document.getElementById("m-soft").innerText = lobe.software;
+            document.getElementById("m-dp").innerText = lobe.decisionPlane;
+            document.getElementById("m-name").innerText = lobe.namingRationale;
+            document.getElementById("m-state").innerText = lobe.status;
+            document.getElementById("inspector-modal").style.display = "block";
+            logTerminal(`[INSPECTOR] Full functional plane opened for ${lobe.name}`);
+        }
+
+        function closeModal() {
+            document.getElementById("inspector-modal").style.display = "none";
+        }
+
+        // ==============================================================================
+        // THREE.JS 3D SCENE SETUP
+        // ==============================================================================
+        const container = document.getElementById("canvas-container");
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050811, 0.035);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 6, 16);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lighting
+        const ambLight = new THREE.AmbientLight(0x00e5ff, 0.5);
+        scene.add(ambLight);
+        const coreLight = new THREE.PointLight(0x00e5ff, 3, 25);
+        scene.add(coreLight);
+        const goldLight = new THREE.PointLight(0xffd700, 2, 20);
+        goldLight.position.set(0, 5, 0);
+        scene.add(goldLight);
+
+        const masterGroup = new THREE.Group();
+        scene.add(masterGroup);
+
+        // ==============================================================================
+        // CENTRAL CORE: DOUBLE-EDGED 4D STAR OF DAVID (HEXAGRAM MERKABA)
+        // ==============================================================================
+        function createHexagramShape(radius) {
+            const shape = new THREE.Shape();
+            const angleStep = Math.PI / 3;
+            for (let i = 0; i < 6; i++) {
+                const a1 = i * angleStep;
+                const a2 = a1 + angleStep / 2;
+                const rOuter = radius;
+                const rInner = radius * 0.57735; // Hexagram vertex proportion
+                const x1 = Math.cos(a1) * rOuter;
+                const y1 = Math.sin(a1) * rOuter;
+                const x2 = Math.cos(a2) * rInner;
+                const y2 = Math.sin(a2) * rInner;
+                if (i === 0) shape.moveTo(x1, y1);
+                else shape.lineTo(x1, y1);
+                shape.lineTo(x2, y2);
+            }
+            shape.closePath();
+            return shape;
+        }
+
+        // Generate Double-Edged 3D Star of David via Extrusion
+        const starShape = createHexagramShape(1.8);
+        const extrudeSettings = { steps: 1, depth: 0.35, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.1, bevelSegments: 3 };
+        const starGeometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+        starGeometry.center();
+
+        const goldStarMat = new THREE.MeshStandardMaterial({
+            color: 0xffd700,
+            emissive: 0xaa7700,
+            metalness: 0.85,
+            roughness: 0.25,
+            wireframe: false
+        });
+
+        const cyanStarMat = new THREE.MeshStandardMaterial({
+            color: 0x00e5ff,
+            emissive: 0x005577,
+            metalness: 0.85,
+            roughness: 0.25,
+            wireframe: false,
+            transparent: true,
+            opacity: 0.85
+        });
+
+        // Rim 1: Master Star (Gold)
+        const starPrimary = new THREE.Mesh(starGeometry, goldStarMat);
+        masterGroup.add(starPrimary);
+
+        // Rim 2: Nested 4D Temporal Offset Star (Cyan, Offset in Space-Time)
+        const starOffset = new THREE.Mesh(starGeometry, cyanStarMat);
+        starOffset.scale.set(0.85, 0.85, 0.85);
+        masterGroup.add(starOffset);
+
+        // Central Quantum Orb inside the Hexagram
+        const innerOrbGeo = new THREE.SphereGeometry(0.85, 32, 32);
+        const innerOrbMat = new THREE.MeshStandardMaterial({
+            color: 0x00ffff,
+            emissive: 0x0088aa,
+            roughness: 0.1,
+            metalness: 0.9,
+            wireframe: true
+        });
+        const innerOrb = new THREE.Mesh(innerOrbGeo, innerOrbMat);
+        innerOrb.userData = { isCore: true };
+        masterGroup.add(innerOrb);
+
+        // Inscribed Topology Text Ring Between the 4D Rims
+        const ringCanvas = document.createElement("canvas");
+        ringCanvas.width = 2048;
+        ringCanvas.height = 128;
+        const ctx = ringCanvas.getContext("2d");
+        ctx.fillStyle = "rgba(0,0,0,0)";
+        ctx.fillRect(0, 0, ringCanvas.width, ringCanvas.height);
+        ctx.fillStyle = "#00e5ff";
+        ctx.font = "bold 26px Courier New";
+        const inscription = LOBES.map(l => l.name).join("  •  ");
+        ctx.fillText(inscription + "  •  " + inscription, 20, 75);
+
+        const ringTex = new THREE.CanvasTexture(ringCanvas);
+        ringTex.wrapS = THREE.RepeatWrapping;
+        ringTex.repeat.set(2, 1);
+
+        const ringCylinderGeo = new THREE.CylinderGeometry(2.6, 2.6, 0.4, 64, 1, true);
+        const ringCylinderMat = new THREE.MeshBasicMaterial({
+            map: ringTex,
+            transparent: true,
+            side: THREE.DoubleSide,
+            opacity: 0.85
+        });
+        const textRingMesh = new THREE.Mesh(ringCylinderGeo, ringCylinderMat);
+        masterGroup.add(textRingMesh);
+
+        // ==============================================================================
+        // 8 ORBITING LOBE SATELLITES & SYNAPSE LINES
+        // ==============================================================================
+        const lobeOrbs = [];
+        const raycastTargets = [innerOrb];
+        const phi = Math.PI * (3 - Math.sqrt(5)); // Golden spiral ratio
+        const orbitRadius = 6.2;
+
+        for (let i = 0; i < 8; i++) {
+            const y = 1 - (i / 7) * 2;
+            const rAtY = Math.sqrt(1 - y * y);
+            const theta = phi * i;
+
+            const posX = Math.cos(theta) * rAtY * orbitRadius;
+            const posZ = Math.sin(theta) * rAtY * orbitRadius;
+            const posY = y * (orbitRadius * 0.65);
+
+            const orbGroup = new THREE.Group();
+            orbGroup.position.set(posX, posY, posZ);
+
+            // Satellite Shell
+            const sGeo = new THREE.DodecahedronGeometry(0.7, 0);
+            const sMat = new THREE.MeshStandardMaterial({
+                color: 0x00e5ff,
+                emissive: 0x003344,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.7
+            });
+            const outerMesh = new THREE.Mesh(sGeo, sMat);
+            orbGroup.add(outerMesh);
+
+            // Glowing Nucleus Orb
+            const nGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const nMat = new THREE.MeshStandardMaterial({
+                color: 0x00ff7f,
+                emissive: 0x00aa44,
+                emissiveIntensity: 0.8
+            });
+            const nucleus = new THREE.Mesh(nGeo, nMat);
+            nucleus.userData = { isLobe: true, lobeIndex: i };
+            orbGroup.add(nucleus);
+
+            masterGroup.add(orbGroup);
+            lobeOrbs.push({ group: orbGroup, outer: outerMesh, nucleus: nucleus, basePos: new THREE.Vector3(posX, posY, posZ), idx: i });
+            raycastTargets.push(nucleus);
+
+            // Laser Synaptic Connection to Core
+            const synGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(posX, posY, posZ)]);
+            const synMat = new THREE.LineBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.3 });
+            const line = new THREE.Line(synGeo, synMat);
+            masterGroup.add(line);
+        }
+
+        // ==============================================================================
+        // RAYCASTING & INTERACTION
+        // ==============================================================================
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            // Prevent raycasting through HUD buttons
+            if (event.target.closest('.hud-panel') || event.target.closest('#inspector-modal')) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(raycastTargets, false);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+                if (target.userData.isCore) {
+                    pulseCore();
+                    logTerminal("[INTERACTION] Central Core Quantum Tesseract clicked: 3.69 Hz Resonance pulse fired.");
+                } else if (target.userData.isLobe) {
+                    const idx = target.userData.lobeIndex;
+                    selectLobe(idx);
+                    openModal(LOBES[idx]);
+                }
+            }
+        });
+
+        function pulseCore() {
+            innerOrbMat.color.setHex(0xffd700);
+            coreLight.intensity = 8.0;
+            setTimeout(() => {
+                innerOrbMat.color.setHex(0x00ffff);
+                coreLight.intensity = 3.0;
+            }, 350);
+        }
+
+        let temporalOffsetActive = true;
+        function toggleTemporalOffset() {
+            temporalOffsetActive = !temporalOffsetActive;
+            logTerminal(`[4D TIMING] 40-Star temporal phase offset: ${temporalOffsetActive ? 'ENABLED' : 'LOCKED'}`);
+        }
+
+        function resetOrbPositions() {
+            logTerminal("[TOPOLOGY] Synaptic vectors realigned to 376.5 Ω free-space baseline.");
+        }
+
+        function triggerCircuitBreaker() {
+            logTerminal("[ALERT] Modulo-9 Circuit Breaker tripped: Inverting suspect vectors.");
+            lobeOrbs[0].nucleus.material.color.setHex(0xff1744);
+            setTimeout(() => {
+                lobeOrbs[0].nucleus.material.color.setHex(0x00ff7f);
+                logTerminal("[HEAL] Bitwise negation (~) cycle completed.");
+            }, 1000);
+        }
+
+        // ==============================================================================
+        // ANIMATION LOOP (3.69 Hz CADENCE & 4D TEMPORAL ROTATIONS)
+        // ==============================================================================
+        const clock = new THREE.Clock();
+        const temporalPhaseOffset = (2 * Math.PI) / 40.0; // True 40-Star phase offset
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+            controls.update();
+
+            // Rotate Master Assembly
+            masterGroup.rotation.y = t * 0.12;
+
+            // Rotate Star 1 (Gold Primary Rim)
+            starPrimary.rotation.z = t * 0.25;
+            starPrimary.rotation.x = Math.sin(t * 0.2) * 0.1;
+
+            // Rotate Star 2 (Cyan Nested Rim) with Temporal 4D Phase Offset
+            if (temporalOffsetActive) {
+                starOffset.rotation.z = -(t * 0.25 + temporalPhaseOffset);
+                starOffset.rotation.y = Math.cos(t * 0.3) * 0.15;
+            } else {
+                starOffset.rotation.z = -starPrimary.rotation.z;
+            }
+
+            // Central Core 3.69 Hz Breathing Pulse
+            const coreScale = 1.0 + 0.09 * Math.sin(t * 3.69 * Math.PI * 2);
+            innerOrb.scale.set(coreScale, coreScale, coreScale);
+
+            // Inscription Ring Counter-Rotation
+            ringTex.offset.x = (t * 0.04) % 1;
+
+            // Orbiting Lobe Rotations
+            lobeOrbs.forEach((orb) => {
+                orb.outer.rotation.y += 0.02;
+                orb.outer.rotation.x += 0.01;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
